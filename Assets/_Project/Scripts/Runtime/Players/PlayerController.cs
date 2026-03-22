@@ -102,7 +102,7 @@ public sealed class PlayerController : MonoBehaviour
 
     private void OnValidate()
     {
-        EnsureSetup();
+        CacheComponentReferences();
         ApplyVisuals();
     }
 
@@ -541,9 +541,7 @@ public sealed class PlayerController : MonoBehaviour
 
     private void EnsureSetup()
     {
-        cachedRigidbody = GetComponent<Rigidbody>();
-        cachedCollider = GetComponent<CapsuleCollider>();
-        cachedRenderer = GetComponent<Renderer>();
+        CacheComponentReferences();
 
         if (cachedRigidbody == null || cachedCollider == null)
         {
@@ -562,6 +560,13 @@ public sealed class PlayerController : MonoBehaviour
         cachedCollider.center = Vector3.zero;
 
         transform.localScale = new Vector3(0.8f, 1f, 0.8f);
+    }
+
+    private void CacheComponentReferences()
+    {
+        cachedRigidbody = GetComponent<Rigidbody>();
+        cachedCollider = GetComponent<CapsuleCollider>();
+        cachedRenderer = GetComponent<Renderer>();
     }
 
     private void ApplyVisuals()

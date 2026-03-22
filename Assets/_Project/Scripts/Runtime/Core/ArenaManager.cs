@@ -18,6 +18,9 @@ public sealed class ArenaManager : MonoBehaviour
     [SerializeField, Min(5)] private int minimumActiveHeight = 5;
     [SerializeField, Min(0.5f)] private float collapseFallDistance = 8f;
     [SerializeField, Min(0.5f)] private float collapseFallSpeed = 12f;
+    [SerializeField, Min(0f)] private float ringCollapseCascadeDelay = 0.03f;
+    [SerializeField] private bool randomizeRingCollapseOrder = true;
+    [SerializeField, Min(0f)] private float ringCollapseDelayJitter = 0.045f;
     [SerializeField] private Color tileBaseColor = new(0.72f, 0.76f, 0.84f, 1f);
     [SerializeField] private Color collapseWarningColor = new(0.92f, 0.22f, 0.18f, 1f);
     [SerializeField, Min(0f)] private float collapseWarningLeadTime = 1.15f;
@@ -29,6 +32,7 @@ public sealed class ArenaManager : MonoBehaviour
     private Transform[,] tiles;
     private Renderer[,] tileRenderers;
     private readonly List<FallingTile> fallingTiles = new();
+    private readonly List<ScheduledCollapse> scheduledCollapses = new();
     private Material tileSharedMaterial;
     private MaterialPropertyBlock tilePropertyBlock;
     private bool roundActive;
@@ -86,6 +90,7 @@ public sealed class ArenaManager : MonoBehaviour
         }
 
         UpdateFallingTiles();
+        UpdateScheduledCollapses();
         UpdateTileWarningVisuals();
 
         if (!roundActive)
@@ -156,6 +161,7 @@ public sealed class ArenaManager : MonoBehaviour
         var tileRoot = FindOrCreateTileRoot();
         ClearChildren(tileRoot);
         fallingTiles.Clear();
+        scheduledCollapses.Clear();
         roundActive = false;
         nextShrinkTime = 0f;
 
@@ -252,10 +258,18 @@ public sealed class ArenaManager : MonoBehaviour
 
     private void CollapseOuterRing()
     {
-        CollapseTileRange(activeMinX, activeMaxX, activeMinY, activeMinY);
-        CollapseTileRange(activeMinX, activeMaxX, activeMaxY, activeMaxY);
-        CollapseTileRange(activeMinX, activeMinX, activeMinY + 1, activeMaxY - 1);
-        CollapseTileRange(activeMaxX, activeMaxX, activeMinY + 1, activeMaxY - 1);
+        var ringTiles = new List<Vector2Int>();
+        CollectTileRange(ringTiles, activeMinX, activeMaxX, activeMinY, activeMinY);
+        CollectTileRange(ringTiles, activeMinX, activeMaxX, activeMaxY, activeMaxY);
+        CollectTileRange(ringTiles, activeMinX, activeMinX, activeMinY + 1, activeMaxY - 1);
+        CollectTileRange(ringTiles, activeMaxX, activeMaxX, activeMinY + 1, activeMaxY - 1);
+
+        if (randomizeRingCollapseOrder)
+        {
+            ShuffleRingTiles(ringTiles);
+        }
+
+        ScheduleRingCollapse(ringTiles);
 
         activeMinX++;
         activeMaxX--;
@@ -263,15 +277,49 @@ public sealed class ArenaManager : MonoBehaviour
         activeMaxY--;
     }
 
-    private void CollapseTileRange(int minX, int maxX, int minY, int maxY)
+    private void CollectTileRange(List<Vector2Int> ringTiles, int minX, int maxX, int minY, int maxY)
     {
         for (var y = minY; y <= maxY; y++)
         {
             for (var x = minX; x <= maxX; x++)
             {
-                CollapseTile(x, y);
+                if (tiles == null || x < 0 || y < 0 || x >= width || y >= height || tiles[x, y] == null)
+                {
+                    continue;
+                }
+
+                ringTiles.Add(new Vector2Int(x, y));
             }
         }
+    }
+
+    private void ShuffleRingTiles(List<Vector2Int> ringTiles)
+    {
+        for (var i = ringTiles.Count - 1; i > 0; i--)
+        {
+            var randomIndex = Random.Range(0, i + 1);
+            (ringTiles[i], ringTiles[randomIndex]) = (ringTiles[randomIndex], ringTiles[i]);
+        }
+    }
+
+    private void ScheduleRingCollapse(List<Vector2Int> ringTiles)
+    {
+        for (var i = 0; i < ringTiles.Count; i++)
+        {
+            var tile = ringTiles[i];
+            var jitter = randomizeRingCollapseOrder ? Random.Range(0f, ringCollapseDelayJitter) : 0f;
+            ScheduleCollapse(tile.x, tile.y, (i * ringCollapseCascadeDelay) + jitter);
+        }
+    }
+
+    private void ScheduleCollapse(int x, int y, float delay)
+    {
+        if (tiles == null || x < 0 || y < 0 || x >= width || y >= height || tiles[x, y] == null)
+        {
+            return;
+        }
+
+        scheduledCollapses.Add(new ScheduledCollapse(x, y, Time.time + delay));
     }
 
     private void CollapseTile(int x, int y)
@@ -297,6 +345,22 @@ public sealed class ArenaManager : MonoBehaviour
         }
 
         fallingTiles.Add(new FallingTile(tile, tile.localPosition.y - collapseFallDistance));
+    }
+
+    private void UpdateScheduledCollapses()
+    {
+        for (var i = scheduledCollapses.Count - 1; i >= 0; i--)
+        {
+            var scheduledCollapse = scheduledCollapses[i];
+
+            if (Time.time < scheduledCollapse.TriggerTime)
+            {
+                continue;
+            }
+
+            CollapseTile(scheduledCollapse.X, scheduledCollapse.Y);
+            scheduledCollapses.RemoveAt(i);
+        }
     }
 
     private void UpdateFallingTiles()
@@ -440,5 +504,19 @@ public sealed class ArenaManager : MonoBehaviour
 
         public Transform Transform { get; }
         public float TargetLocalY { get; }
+    }
+
+    private readonly struct ScheduledCollapse
+    {
+        public ScheduledCollapse(int x, int y, float triggerTime)
+        {
+            X = x;
+            Y = y;
+            TriggerTime = triggerTime;
+        }
+
+        public int X { get; }
+        public int Y { get; }
+        public float TriggerTime { get; }
     }
 }

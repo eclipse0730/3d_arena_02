@@ -2683,7 +2683,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   currentPhase: 0
   roundCountdownDuration: 3
-  participantCount: 2
+  participantCount: 6
   autoSpawnPlayersOnPlay: 0
   participantNames:
   - Player 1

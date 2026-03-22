@@ -573,3 +573,193 @@
 확인 내용:
 - `dotnet build Assembly-CSharp.csproj` 확인
 - 경고 0개 오류 0개
+
+### 2026-03-22 - 외곽 붕괴 우수수 연출 추가
+
+작업 내용:
+- 외곽 링이 한 번에 통째로 떨어지지 않고, 타일마다 미세한 시차를 두고 순서대로 무너지도록 수정했다.
+- `ringCollapseCascadeDelay` 값을 추가해서 인스펙터에서 우수수 떨어지는 간격을 조절할 수 있게 했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개 오류 0개
+
+### 2026-03-22 - 외곽 붕괴 랜덤 순서 추가
+
+작업 내용:
+- 외곽 링 타일이 너무 규칙적으로 떨어지지 않도록, 같은 링 안에서 붕괴 순서를 랜덤하게 섞었다.
+- 타일마다 작은 지연 편차를 더해서 우수수 무너지는 느낌이 더 자연스럽게 보이도록 조정했다.
+- 인스펙터에서 `randomizeRingCollapseOrder`, `ringCollapseDelayJitter` 값을 조절할 수 있게 했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개 오류 0개
+
+### 2026-03-22 - 시작 화면 및 재시작 UI 추가
+
+작업 내용:
+- 시작 화면에 플레이어 수 표시, 이름 입력 목록, 인원 증감 버튼, 시작 버튼을 추가했다.
+- 플레이어 수는 4명부터 20명까지 조절 가능하게 바꿨다.
+- 이름은 `GameManager`에 유지되도록 해서, 게임 종료 후 다시 시작 화면으로 돌아와도 이전 값이 남도록 했다.
+- 플레이어 수가 많아질수록 경기장 크기가 자동으로 커지도록 조정했다.
+- 결과 패널 아래에 Restart 버튼을 추가해서 설정 화면으로 자연스럽게 돌아갈 수 있게 했다.
+- 메인 씬은 자동 시작 대신 설정 화면이 먼저 뜨도록 변경했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+- `Assets/_Project/Scripts/Editor/SceneUIBuilder.cs`
+- `Assets/_Project/MainScenes.unity`
+
+확인 내용:
+- `dotnet build Assembly-CSharp-Editor.csproj` 확인
+- 에디터 빌드에서 런타임/에디터 어셈블리 모두 통과
+- 경고 0개 오류 0개
+
+### 2026-03-22 - 셋업 UI 클릭 불가 수정
+
+작업 내용:
+- 클릭이 되지 않던 원인을 `EventSystem` 누락으로 확인하고, 씬 UI 빌더와 런타임 부트스트랩에서 `EventSystem`과 `StandaloneInputModule`을 자동 보장하도록 수정했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Editor/SceneUIBuilder.cs`
+- `Assets/_Project/Scripts/Runtime/Bootstrap/SceneSetupBootstrap.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- `dotnet build Assembly-CSharp-Editor.csproj` 확인
+- 경고 0개 오류 0개
+
+### 2026-03-22 - Input System UI 모듈로 교체
+
+작업 내용:
+- 프로젝트가 `com.unity.inputsystem`을 사용 중이라 `StandaloneInputModule`이 예외를 내던 문제를 수정했다.
+- 씬 UI 빌더와 런타임 부트스트랩 모두 `InputSystemUIInputModule`을 사용하도록 변경했다.
+- 기존 `StandaloneInputModule`이 이미 붙어 있는 경우에는 제거 후 올바른 모듈로 교체하도록 처리했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Bootstrap/SceneSetupBootstrap.cs`
+- `Assets/_Project/Scripts/Editor/SceneUIBuilder.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- `dotnet build Assembly-CSharp-Editor.csproj` 확인
+- 경고 0개 오류 0개
+### 2026-03-22 - 리빌드 안정성 점검
+
+작업 내용:
+- Unity 리빌드 시점의 불안정 원인을 코드와 `Editor.log` 기준으로 점검했다.
+- 가장 큰 위험 요소로 보이던 에디터 리로드 시 자동 씬 변경 경로를 다시 확인했고, 현재 `SceneUIBuilder`가 메뉴 실행 방식만 사용하도록 유지되는 것을 확인했다.
+- `PlayerController.OnValidate()`가 프리팹/컴포넌트 검증 중 과도한 셋업을 하지 않고, 참조 캐시와 비주얼 적용만 수행하도록 완화된 상태를 확인했다.
+- `Editor.log` 마지막 구간에는 네이티브 크래시 스택은 없었고, 도메인 리로드와 복구 씬 로드가 반복되는 흔적이 확인됐다.
+
+검토 결과:
+- 현재 가장 의심되는 원인은 "스크립트 리로드 타이밍에 씬/프리팹을 자동으로 다시 만지는 에디터 코드"였고, 지금은 그 위험이 크게 줄어든 상태다.
+- 다만 `Assets/_Recovery/` 씬이 계속 import/open 대상이 되고 있어, 에디터 복구 상태가 남아 있으면 체감상 더 불안정해질 수 있다.
+- 런타임/에디터 어셈블리는 모두 정상 빌드된다.
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- `dotnet build Assembly-CSharp-Editor.csproj` 확인
+- 경고 0개, 오류 0개
+
+### 2026-03-22 - UIManager 씬 배치형 전용 정리
+
+작업 내용:
+- `UIManager`의 런타임 UI 생성 fallback을 제거했다.
+- 이제 `UIManager`는 씬에 배치된 `Canvas`, HUD, SetupPanel, ResultsPanel 참조만 사용한다.
+- 씬 참조가 비어 있으면 UI를 새로 만들지 않고, `Tools > 3D Arena > Ensure Scene UI` 사용 안내 경고만 출력하도록 정리했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- `dotnet build Assembly-CSharp-Editor.csproj` 확인
+- 런타임 빌드 오류 0개
+- 에디터 빌드는 `Temp/obj` 상태 파일 잠금 경고 1개가 있었지만 출력 DLL 생성은 완료됐다.
+### 2026-03-22 - Setup UI 입력 동작 복구
+
+작업 내용:
+- 메인 씬에 아직 `StandaloneInputModule`이 남아 있는 상태를 확인했다.
+- 런타임 `EventSystem` 보정 로직이 `Destroy(StandaloneInputModule)` 직후 같은 프레임에 `BaseInputModule` 존재 여부를 확인하고 있어, 실제로 `InputSystemUIInputModule`이 추가되지 않을 수 있는 문제를 수정했다.
+- 이제 런타임과 에디터 UI 빌더 모두 `InputSystemUIInputModule`를 명시적으로 보장하고, `actionsAsset`이 비어 있으면 `AssignDefaultActions()`를 호출해 기본 UI 입력 액션을 자동으로 채운다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Bootstrap/SceneSetupBootstrap.cs`
+- `Assets/_Project/Scripts/Editor/SceneUIBuilder.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개, 오류 0개
+
+### 2026-03-22 - 이름 입력 UX 개선
+
+작업 내용:
+- Setup UI의 이름 입력칸에서 `Tab` 키를 누르면 다음 입력칸으로 포커스가 이동하도록 추가했다.
+- 마우스 클릭이나 `Tab` 이동으로 입력칸이 활성화되면 기존 텍스트를 비우고 처음부터 바로 입력할 수 있게 수정했다.
+- `InputField` 선택 이벤트는 `EventTrigger.Select`를 사용해 연결했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개, 오류 0개
+
+### 2026-03-22 - 최소 인원 및 패널 정렬 개선
+
+작업 내용:
+- 참가 인원 하한을 `2명`으로 낮췄고, 현재 메인 씬 기본값도 `2명`으로 맞췄다.
+- `GameManager`와 `UIManager`의 주요 `SerializeField`에 `Tooltip` 설명을 추가해 인스펙터에서 역할을 바로 확인할 수 있게 정리했다.
+- 참가 인원이 많아질 때 SetupPanel과 ResultsPanel 크기가 커지도록 적응형 레이아웃을 추가했다.
+- 참가 인원이 많을 때 Setup 이름 입력 행 높이와 폰트 크기를 줄여 화면 안에서 더 안정적으로 보이게 조정했다.
+- 참가 인원이 많을 때 ResultsPanel의 크기와 텍스트 크기를 함께 조정해 순위 목록이 더 잘 보이도록 정리했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+- `Assets/_Project/MainScenes.unity`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개, 오류 0개
+
+### 2026-03-22 - Tooltip 한글화 및 2열 UI 정리
+
+작업 내용:
+- `GameManager`와 `UIManager`의 주요 `Tooltip` 문구를 한글로 바꿨다.
+- 참가 인원 감소 버튼이 `4명` 아래로 내려가지 않던 문제를 수정해서 `2명`까지 정상 동작하도록 정리했다.
+- 참가 인원이 `11명 이상`이면 Setup 이름 입력 목록이 2열로 배치되도록 레이아웃을 전환했다.
+- 참가 인원이 `11명 이상`이면 Results 순위 목록도 2열로 배치되도록 동적 결과 레이아웃을 추가했다.
+- 결과 패널 제목과 참가 인원 표기도 한글 표현으로 맞췄다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개, 오류 0개
+
+### 2026-03-22 - 2열 레이아웃 충돌 수정
+
+작업 내용:
+- `PlayerListContent`와 `ResultsListContent`에 서로 다른 `LayoutGroup`을 런타임에 겹쳐 붙이려 하면서 발생하던 오류를 수정했다.
+- 셋업 이름 입력 목록은 `세로 콘텐츠 루트 + 가로 행` 구조로 다시 구성해, `11명 이상`일 때 각 행에 2개씩 배치되도록 변경했다.
+- 결과 패널 순위 목록도 같은 방식으로 다시 구성해, `11명 이상`일 때 2열 표시가 안정적으로 동작하도록 정리했다.
+- 참가 인원 감소 하한은 다시 확인했고 `2명`까지 정상적으로 내려가도록 유지했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개, 오류 0개

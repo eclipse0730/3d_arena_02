@@ -1,6 +1,8 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -11,36 +13,23 @@ public static class SceneUIBuilder
     private const string ShrinkCountdownName = "ShrinkCountdown";
     private const string StateTextName = "StateText";
     private const string RoundCountdownName = "RoundCountdown";
+    private const string SetupPanelName = "SetupPanel";
+    private const string SetupTitleName = "SetupTitle";
+    private const string PlayerCountName = "PlayerCountLabel";
+    private const string DecreasePlayersButtonName = "DecreasePlayersButton";
+    private const string IncreasePlayersButtonName = "IncreasePlayersButton";
+    private const string PlayerListScrollViewName = "PlayerListScrollView";
+    private const string PlayerListViewportName = "Viewport";
+    private const string PlayerListContentName = "PlayerListContent";
+    private const string StartButtonName = "StartButton";
     private const string ResultsPanelName = "ResultsPanel";
     private const string ResultsTitleName = "ResultsTitle";
     private const string ResultsBodyName = "ResultsBody";
-
-    [InitializeOnLoadMethod]
-    private static void RegisterAutoBuild()
-    {
-        EditorApplication.delayCall += TryEnsureSceneUIAfterReload;
-    }
+    private const string RestartButtonName = "RestartButton";
 
     [MenuItem("Tools/3D Arena/Ensure Scene UI")]
     private static void EnsureSceneUIFromMenu()
     {
-        EnsureSceneUI();
-    }
-
-    private static void TryEnsureSceneUIAfterReload()
-    {
-        if (EditorApplication.isPlayingOrWillChangePlaymode)
-        {
-            return;
-        }
-
-        var activeScene = SceneManager.GetActiveScene();
-
-        if (!activeScene.IsValid() || activeScene.path != ScenePath)
-        {
-            return;
-        }
-
         EnsureSceneUI();
     }
 
@@ -62,6 +51,8 @@ public static class SceneUIBuilder
 
         var uiRoot = FindOrCreateChild(gameRoot.transform, "UI");
         var uiManager = uiRoot.GetComponent<UIManager>();
+
+        EnsureEventSystem(activeScene);
 
         if (uiManager == null)
         {
@@ -146,6 +137,156 @@ public static class SceneUIBuilder
             TextAnchor.MiddleCenter,
             new Color(1f, 0.98f, 0.88f, 1f));
 
+        var setupPanelTransform = FindOrCreateChild(canvasTransform, SetupPanelName);
+        var setupPanel = setupPanelTransform.GetComponent<Image>();
+
+        if (setupPanel == null)
+        {
+            setupPanel = Undo.AddComponent<Image>(setupPanelTransform.gameObject);
+            var setupRect = setupPanel.rectTransform;
+            setupRect.anchorMin = new Vector2(0.5f, 0.5f);
+            setupRect.anchorMax = new Vector2(0.5f, 0.5f);
+            setupRect.pivot = new Vector2(0.5f, 0.5f);
+            setupRect.anchoredPosition = Vector2.zero;
+            setupRect.sizeDelta = new Vector2(720f, 900f);
+            setupPanel.color = new Color(0.05f, 0.08f, 0.12f, 0.9f);
+        }
+
+        EnsureText(
+            setupPanelTransform,
+            SetupTitleName,
+            new Vector2(0f, 1f),
+            new Vector2(1f, 1f),
+            new Vector2(0.5f, 1f),
+            new Vector2(0f, -28f),
+            new Vector2(-64f, 60f),
+            34,
+            FontStyle.Bold,
+            TextAnchor.UpperCenter,
+            new Color(1f, 0.96f, 0.82f, 1f)).text = "Arena Setup";
+
+        var playerCountText = EnsureText(
+            setupPanelTransform,
+            PlayerCountName,
+            new Vector2(0f, 1f),
+            new Vector2(1f, 1f),
+            new Vector2(0.5f, 1f),
+            new Vector2(0f, -96f),
+            new Vector2(-220f, 40f),
+            24,
+            FontStyle.Bold,
+            TextAnchor.MiddleCenter,
+            Color.white);
+
+        var decreasePlayersButton = EnsureButton(
+            setupPanelTransform,
+            DecreasePlayersButtonName,
+            new Vector2(0f, 1f),
+            new Vector2(0f, 1f),
+            new Vector2(0f, 1f),
+            new Vector2(36f, -92f),
+            new Vector2(72f, 40f),
+            "-");
+
+        var increasePlayersButton = EnsureButton(
+            setupPanelTransform,
+            IncreasePlayersButtonName,
+            new Vector2(1f, 1f),
+            new Vector2(1f, 1f),
+            new Vector2(1f, 1f),
+            new Vector2(-36f, -92f),
+            new Vector2(72f, 40f),
+            "+");
+
+        var scrollViewTransform = FindOrCreateChild(setupPanelTransform, PlayerListScrollViewName);
+        var scrollViewImage = scrollViewTransform.GetComponent<Image>();
+
+        if (scrollViewImage == null)
+        {
+            scrollViewImage = Undo.AddComponent<Image>(scrollViewTransform.gameObject);
+            var scrollRect = scrollViewImage.rectTransform;
+            scrollRect.anchorMin = new Vector2(0f, 0f);
+            scrollRect.anchorMax = new Vector2(1f, 1f);
+            scrollRect.pivot = new Vector2(0.5f, 0.5f);
+            scrollRect.anchoredPosition = new Vector2(0f, -8f);
+            scrollRect.offsetMin = new Vector2(36f, 110f);
+            scrollRect.offsetMax = new Vector2(-36f, -170f);
+            scrollViewImage.color = new Color(0.1f, 0.12f, 0.18f, 0.88f);
+        }
+
+        var scrollRectComponent = scrollViewTransform.GetComponent<ScrollRect>();
+
+        if (scrollRectComponent == null)
+        {
+            scrollRectComponent = Undo.AddComponent<ScrollRect>(scrollViewTransform.gameObject);
+        }
+
+        var viewportTransform = FindOrCreateChild(scrollViewTransform, PlayerListViewportName);
+        var viewportImage = viewportTransform.GetComponent<Image>();
+
+        if (viewportImage == null)
+        {
+            viewportImage = Undo.AddComponent<Image>(viewportTransform.gameObject);
+            viewportImage.color = new Color(1f, 1f, 1f, 0.02f);
+        }
+
+        if (viewportTransform.GetComponent<Mask>() == null)
+        {
+            var mask = Undo.AddComponent<Mask>(viewportTransform.gameObject);
+            mask.showMaskGraphic = false;
+        }
+
+        var viewportRect = (RectTransform)viewportTransform;
+        viewportRect.anchorMin = Vector2.zero;
+        viewportRect.anchorMax = Vector2.one;
+        viewportRect.offsetMin = new Vector2(12f, 12f);
+        viewportRect.offsetMax = new Vector2(-12f, -12f);
+
+        var contentTransform = FindOrCreateChild(viewportTransform, PlayerListContentName);
+        var contentRect = (RectTransform)contentTransform;
+        contentRect.anchorMin = new Vector2(0f, 1f);
+        contentRect.anchorMax = new Vector2(1f, 1f);
+        contentRect.pivot = new Vector2(0.5f, 1f);
+        contentRect.anchoredPosition = Vector2.zero;
+        contentRect.sizeDelta = new Vector2(0f, 0f);
+
+        var contentLayout = contentTransform.GetComponent<VerticalLayoutGroup>();
+
+        if (contentLayout == null)
+        {
+            contentLayout = Undo.AddComponent<VerticalLayoutGroup>(contentTransform.gameObject);
+            contentLayout.padding = new RectOffset(0, 0, 0, 0);
+            contentLayout.spacing = 10f;
+            contentLayout.childAlignment = TextAnchor.UpperCenter;
+            contentLayout.childControlHeight = true;
+            contentLayout.childControlWidth = true;
+            contentLayout.childForceExpandHeight = false;
+            contentLayout.childForceExpandWidth = true;
+        }
+
+        if (contentTransform.GetComponent<ContentSizeFitter>() == null)
+        {
+            var fitter = Undo.AddComponent<ContentSizeFitter>(contentTransform.gameObject);
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        }
+
+        scrollRectComponent.viewport = viewportRect;
+        scrollRectComponent.content = contentRect;
+        scrollRectComponent.horizontal = false;
+        scrollRectComponent.vertical = true;
+        scrollRectComponent.movementType = ScrollRect.MovementType.Clamped;
+
+        var startButton = EnsureButton(
+            setupPanelTransform,
+            StartButtonName,
+            new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f),
+            new Vector2(0f, 36f),
+            new Vector2(240f, 56f),
+            "Start");
+
         var resultsPanelTransform = FindOrCreateChild(canvasTransform, ResultsPanelName);
         var resultsPanel = resultsPanelTransform.GetComponent<Image>();
         var createdResultsPanel = false;
@@ -194,6 +335,16 @@ public static class SceneUIBuilder
             TextAnchor.UpperLeft,
             new Color(0.93f, 0.96f, 1f, 1f));
 
+        var restartButton = EnsureButton(
+            resultsPanelTransform,
+            RestartButtonName,
+            new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f),
+            new Vector2(0f, 28f),
+            new Vector2(220f, 52f),
+            "Restart");
+
         uiManager.BindSceneReferences(
             canvas,
             shrinkCountdown,
@@ -201,11 +352,65 @@ public static class SceneUIBuilder
             roundCountdown,
             resultsPanel,
             resultsTitle,
-            resultsBody);
+            resultsBody,
+            setupPanel,
+            playerCountText,
+            contentRect,
+            decreasePlayersButton,
+            increasePlayersButton,
+            startButton,
+            restartButton);
 
         EditorUtility.SetDirty(uiManager);
         EditorUtility.SetDirty(canvas.gameObject);
         EditorSceneManager.MarkSceneDirty(activeScene);
+    }
+
+    private static void EnsureEventSystem(Scene activeScene)
+    {
+        var eventSystem = Object.FindFirstObjectByType<EventSystem>();
+
+        if (eventSystem == null)
+        {
+            var eventSystemObject = new GameObject("EventSystem");
+            Undo.RegisterCreatedObjectUndo(eventSystemObject, "Create EventSystem");
+            eventSystem = Undo.AddComponent<EventSystem>(eventSystemObject);
+            var createdModule = Undo.AddComponent<InputSystemUIInputModule>(eventSystemObject);
+            EnsureInputSystemUiActions(createdModule);
+            EditorSceneManager.MarkSceneDirty(activeScene);
+            return;
+        }
+
+        var standaloneModule = eventSystem.GetComponent<StandaloneInputModule>();
+        var inputSystemModule = eventSystem.GetComponent<InputSystemUIInputModule>();
+
+        if (standaloneModule != null)
+        {
+            Undo.DestroyObjectImmediate(standaloneModule);
+            EditorSceneManager.MarkSceneDirty(activeScene);
+        }
+
+        if (inputSystemModule == null)
+        {
+            inputSystemModule = Undo.AddComponent<InputSystemUIInputModule>(eventSystem.gameObject);
+            EditorSceneManager.MarkSceneDirty(activeScene);
+        }
+
+        if (EnsureInputSystemUiActions(inputSystemModule))
+        {
+            EditorSceneManager.MarkSceneDirty(activeScene);
+        }
+    }
+
+    private static bool EnsureInputSystemUiActions(InputSystemUIInputModule inputSystemModule)
+    {
+        if (inputSystemModule == null || inputSystemModule.actionsAsset != null)
+        {
+            return false;
+        }
+
+        inputSystemModule.AssignDefaultActions();
+        return true;
     }
 
     private static Transform FindOrCreateChild(Transform parent, string childName)
@@ -266,6 +471,56 @@ public static class SceneUIBuilder
         }
 
         return text;
+    }
+
+    private static Button EnsureButton(
+        Transform parent,
+        string objectName,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Vector2 pivot,
+        Vector2 anchoredPosition,
+        Vector2 sizeDelta,
+        string labelText)
+    {
+        var buttonTransform = FindOrCreateChild(parent, objectName);
+        var buttonImage = buttonTransform.GetComponent<Image>();
+
+        if (buttonImage == null)
+        {
+            buttonImage = Undo.AddComponent<Image>(buttonTransform.gameObject);
+            buttonImage.color = new Color(0.2f, 0.53f, 0.88f, 0.96f);
+        }
+
+        var button = buttonTransform.GetComponent<Button>();
+
+        if (button == null)
+        {
+            button = Undo.AddComponent<Button>(buttonTransform.gameObject);
+        }
+
+        var rectTransform = (RectTransform)buttonTransform;
+        rectTransform.anchorMin = anchorMin;
+        rectTransform.anchorMax = anchorMax;
+        rectTransform.pivot = pivot;
+        rectTransform.anchoredPosition = anchoredPosition;
+        rectTransform.sizeDelta = sizeDelta;
+
+        var label = EnsureText(
+            buttonTransform,
+            "Label",
+            Vector2.zero,
+            Vector2.one,
+            new Vector2(0.5f, 0.5f),
+            Vector2.zero,
+            Vector2.zero,
+            22,
+            FontStyle.Bold,
+            TextAnchor.MiddleCenter,
+            Color.white);
+        label.text = labelText;
+
+        return button;
     }
 
     private static Font LoadBuiltinFont()

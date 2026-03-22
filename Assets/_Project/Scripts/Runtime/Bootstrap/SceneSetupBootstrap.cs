@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 
 [DisallowMultipleComponent]
 public sealed class SceneSetupBootstrap : MonoBehaviour
@@ -37,6 +39,7 @@ public sealed class SceneSetupBootstrap : MonoBehaviour
 
         UpgradeLegacyArenaSize(arenaManager);
         RemoveLegacyGround(arena);
+        EnsureEventSystem();
         uiManager.InitializeRuntimeUI();
         ConfigureCamera();
         ConfigureDirectionalLight();
@@ -119,5 +122,44 @@ public sealed class SceneSetupBootstrap : MonoBehaviour
         }
 
         return target.AddComponent<T>();
+    }
+
+    private static void EnsureEventSystem()
+    {
+        var eventSystem = FindFirstObjectByType<EventSystem>();
+
+        if (eventSystem == null)
+        {
+            var eventSystemObject = new GameObject("EventSystem");
+            eventSystem = eventSystemObject.AddComponent<EventSystem>();
+            var createdModule = eventSystemObject.AddComponent<InputSystemUIInputModule>();
+            EnsureInputSystemUiActions(createdModule);
+            return;
+        }
+
+        var standaloneModule = eventSystem.GetComponent<StandaloneInputModule>();
+        var inputSystemModule = eventSystem.GetComponent<InputSystemUIInputModule>();
+
+        if (standaloneModule != null)
+        {
+            Destroy(standaloneModule);
+        }
+
+        if (inputSystemModule == null)
+        {
+            inputSystemModule = eventSystem.gameObject.AddComponent<InputSystemUIInputModule>();
+        }
+
+        EnsureInputSystemUiActions(inputSystemModule);
+    }
+
+    private static void EnsureInputSystemUiActions(InputSystemUIInputModule inputSystemModule)
+    {
+        if (inputSystemModule == null || inputSystemModule.actionsAsset != null)
+        {
+            return;
+        }
+
+        inputSystemModule.AssignDefaultActions();
     }
 }

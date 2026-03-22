@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public sealed class GameManager : MonoBehaviour
@@ -12,26 +12,35 @@ public sealed class GameManager : MonoBehaviour
     }
 
     [Header("Round")]
+    [Tooltip("현재 게임 진행 단계를 표시합니다.")]
     [SerializeField] private GamePhase currentPhase = GamePhase.Setup;
-    [Tooltip("게임 시작 전 카운트다운 길이입니다.")]
+    [Tooltip("카운트다운이 끝날 때까지 기다리는 시간입니다.")]
     [SerializeField, Min(0f)] private float roundCountdownDuration = 3f;
 
     [Header("Participants")]
-    [SerializeField, Range(4, 12)] private int participantCount = 6;
-    [SerializeField] private bool autoSpawnPlayersOnPlay = true;
+    [Tooltip("이번 라운드에 참가할 인원 수입니다.")]
+    [SerializeField, Range(2, 20)] private int participantCount = 2;
+    [Tooltip("Play 시작과 동시에 자동으로 라운드를 시작할지 여부입니다.")]
+    [SerializeField] private bool autoSpawnPlayersOnPlay = false;
+    [Tooltip("셋업 화면에서 사용하는 참가자 이름 목록입니다.")]
     [SerializeField] private List<string> participantNames = new();
 
     [Header("Scene References")]
+    [Tooltip("씬에 배치된 경기장 매니저입니다.")]
     [SerializeField] private ArenaManager arenaManager;
+    [Tooltip("생성된 플레이어가 들어갈 부모 오브젝트입니다.")]
     [SerializeField] private Transform playersRoot;
+    [Tooltip("플레이어 생성에 사용할 프리팹입니다.")]
     [SerializeField] private PlayerController playerPrefab;
+    [Tooltip("셋업, HUD, 결과 화면을 관리하는 UI 매니저입니다.")]
     [SerializeField] private UIManager uiManager;
 
     [Header("Player Tuning")]
+    [Tooltip("모든 플레이어에게 공통으로 적용할 런타임 설정입니다.")]
     [SerializeField] private PlayerRuntimeSettings playerSettings = new();
 
     [Header("Spawn Power")]
-    [Tooltip("플레이어가 스폰될 때 가질 수 있는 최소 기본 파워입니다.")]
+    [Tooltip("플레이어에게 순서대로 적용할 색상 목록입니다.")]
     [SerializeField] private Color[] playerColors =
     {
         new(0.91f, 0.32f, 0.28f),
@@ -43,8 +52,9 @@ public sealed class GameManager : MonoBehaviour
         new(0.18f, 0.78f, 0.82f),
         new(0.95f, 0.40f, 0.64f)
     };
+    [Tooltip("파워 진동 적용 전의 최소 시작 파워입니다.")]
     [SerializeField, Range(1f, 10f)] private float minSpawnPower = 3f;
-    [Tooltip("플레이어가 스폰될 때 가질 수 있는 최대 기본 파워입니다.")]
+    [Tooltip("파워 진동 적용 전의 최대 시작 파워입니다.")]
     [SerializeField, Range(1f, 10f)] private float maxSpawnPower = 7f;
 
     private readonly List<PlayerController> spawnedPlayers = new();
@@ -54,6 +64,8 @@ public sealed class GameManager : MonoBehaviour
     public GamePhase CurrentPhase => currentPhase;
     public IReadOnlyList<PlayerController> SpawnedPlayers => spawnedPlayers;
     public IReadOnlyList<PlayerController> EliminationOrder => eliminationOrder;
+    public int ParticipantCount => participantCount;
+    public IReadOnlyList<string> ParticipantNames => participantNames;
     public PlayerController Winner { get; private set; }
     public float CountdownRemaining => currentPhase == GamePhase.Countdown
         ? Mathf.Max(0f, countdownEndTime - Time.time)
@@ -62,6 +74,7 @@ public sealed class GameManager : MonoBehaviour
 
     private void OnValidate()
     {
+        EnsureParticipantSlots();
         TryResolveReferences();
         TryResolvePlayerPrefab();
     }
@@ -74,6 +87,7 @@ public sealed class GameManager : MonoBehaviour
         }
 
         Time.timeScale = 1f;
+        EnsureParticipantSlots();
         TryResolveReferences();
         TryResolvePlayerPrefab();
         uiManager?.InitializeRuntimeUI();
@@ -106,11 +120,40 @@ public sealed class GameManager : MonoBehaviour
         currentPhase = nextPhase;
     }
 
+    public void AdjustParticipantCount(int delta)
+    {
+        participantCount = Mathf.Clamp(participantCount + delta, 2, 20);
+        EnsureParticipantSlots();
+    }
+
+    public void SetParticipantName(int index, string value)
+    {
+        EnsureParticipantSlots();
+
+        if (index < 0 || index >= participantNames.Count)
+        {
+            return;
+        }
+
+        participantNames[index] = value;
+    }
+
+    public void StartRoundFromSetup()
+    {
+        if (currentPhase != GamePhase.Setup)
+        {
+            return;
+        }
+
+        SpawnPlayersForCurrentRound();
+    }
+
     public void ResetToSetup()
     {
         Time.timeScale = 1f;
         currentPhase = GamePhase.Setup;
         countdownEndTime = 0f;
+        EnsureParticipantSlots();
         arenaManager?.EndRound();
         arenaManager?.RebuildArena();
         ClearSpawnedPlayers();
@@ -129,6 +172,8 @@ public sealed class GameManager : MonoBehaviour
         }
 
         ClearSpawnedPlayers();
+        EnsureParticipantSlots();
+        ConfigureArenaForParticipantCount();
         arenaManager.RebuildArena();
 
         var participantTotal = Mathf.Min(participantCount, arenaManager.Width * arenaManager.Height);
@@ -255,6 +300,39 @@ public sealed class GameManager : MonoBehaviour
 
             DestroyImmediate(child);
         }
+    }
+
+    private void EnsureParticipantSlots()
+    {
+        participantCount = Mathf.Clamp(participantCount, 2, 20);
+
+        while (participantNames.Count < participantCount)
+        {
+            participantNames.Add($"Player {participantNames.Count + 1}");
+        }
+
+        while (participantNames.Count > participantCount)
+        {
+            participantNames.RemoveAt(participantNames.Count - 1);
+        }
+    }
+
+    private void ConfigureArenaForParticipantCount()
+    {
+        if (arenaManager == null)
+        {
+            return;
+        }
+
+        var targetSize = participantCount switch
+        {
+            <= 8 => 15,
+            <= 12 => 18,
+            <= 16 => 21,
+            _ => 24
+        };
+
+        arenaManager.ConfigureArenaSize(targetSize, targetSize);
     }
 
     private int[] BuildShuffledTileIndices()
@@ -409,3 +487,4 @@ public sealed class GameManager : MonoBehaviour
         }
     }
 }
+

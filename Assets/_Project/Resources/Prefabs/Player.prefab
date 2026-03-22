@@ -172,6 +172,8 @@ MonoBehaviour:
     upwardKnockbackForce: 1.35
     collisionCooldown: 0.15
     collisionRecoveryDuration: 0.45
+    powerOscillationAmplitude: 1.75
+    powerOscillationCycleDuration: 4.5
     outsideArenaMargin: 0.3
     outsideArenaEliminationDelay: 0.2
     fallThresholdY: -2
