@@ -1,0 +1,575 @@
+# 3D Arena Survival Development Progress
+
+## 1. 문서 목적
+
+이 문서는 실제 개발 진행 내역을 누적 기록하는 작업 로그다.
+앞으로 구현 단계가 끝날 때마다 아래 기록에 계속 추가한다.
+
+## 2. 기록 규칙
+
+- 날짜 기준으로 작업 내용을 순서대로 남긴다.
+- 구현 내용, 확인 방법, 다음 작업을 함께 적는다.
+- 초보자가 다시 읽어도 흐름이 보이도록 쉬운 표현을 사용한다.
+
+## 3. 진행 기록
+
+### 2026-03-22 - 개발 흐름 정리와 1단계 시작
+
+작업 내용:
+- `PRD.md`를 읽고 전체 게임 방향을 정리했다.
+- PRD를 실제 구현 순서로 바꾼 개발 가이드 문서 `DevelopmentPlan.md`를 만들었다.
+- 메인 씬에 `GameRoot`, `Managers`, `Arena`, `Players`, `UI` 구조를 추가했다.
+- 관전용 카메라 위치를 조정했다.
+- 기본 바닥과 초기 매니저 스크립트 자리를 만들었다.
+
+추가된 주요 파일:
+- `Assets/Docs/DevelopmentPlan.md`
+- `Assets/_Project/Scripts/Runtime/Bootstrap/SceneSetupBootstrap.cs`
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj`로 C# 스크립트 컴파일 확인
+- 경고 0개, 오류 0개 상태까지 정리
+
+현재 상태:
+- 씬의 기본 뼈대가 준비된 상태
+- 다음으로 경기장 타일 생성을 붙이기 좋은 상태
+
+다음 작업:
+- `ArenaManager`에서 타일형 경기장을 자동 생성하도록 구현
+
+### 2026-03-22 - 2단계 경기장 생성 구현
+
+작업 내용:
+- `ArenaManager`에 타일 맵 자동 생성 기능을 추가했다.
+- 경기장 크기(`width`, `height`)와 타일 크기(`tileSize`, `tileHeight`, `tileGap`)를 인스펙터에서 조절할 수 있게 했다.
+- `Arena` 오브젝트 아래에 `Tiles` 루트를 만들고 그 안에 타일 큐브들을 자동 생성하도록 구성했다.
+- 각 타일의 월드 위치를 계산하는 함수와 랜덤 스폰 위치를 얻는 함수를 추가했다.
+- 기존 `Ground` 오브젝트가 경기장 크기에 맞게 자동으로 넓어지도록 연결했다.
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj`로 다시 컴파일 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 씬을 열면 `ArenaManager`가 타일 경기장을 자동으로 준비할 수 있는 상태
+- 다음 단계에서 이 타일 위에 플레이어를 생성할 기반이 준비됨
+
+다음 작업:
+- 플레이어 프리팹 1종 만들기
+- 플레이어 여러 명 생성 기능 붙이기
+
+### 2026-03-22 - 3단계 플레이어 기본형과 4단계 여러 명 생성 시작
+
+작업 내용:
+- `PlayerController`를 추가해 플레이어 기본형의 물리 설정을 한 곳에 모았다.
+- 플레이어가 `Rigidbody`, `CapsuleCollider`를 갖고 항상 서 있는 형태를 유지하도록 기본값을 넣었다.
+- `GameManager`가 플레이 모드 시작 시 여러 명의 참가자를 자동 생성하도록 확장했다.
+- 참가자 수, 기본 이름 목록, 색상 팔레트를 인스펙터에서 조절할 수 있게 했다.
+- 경기장 타일 좌표를 섞어서 서로 다른 위치에 플레이어가 배치되도록 구성했다.
+
+추가된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj`로 다시 컴파일 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 플레이 모드 시작 시 캡슐 형태의 플레이어가 여러 명 자동 생성될 수 있는 상태
+- 캐릭터마다 기본 이름과 색상이 들어가는 상태
+- 아직 자동 이동과 충돌 넉백은 붙지 않은 상태
+
+다음 작업:
+- 플레이어 AI 자동 이동 추가
+- 충돌 넉백과 파워 값 연결
+
+### 2026-03-22 - 5단계 AI 자동 이동 추가
+
+작업 내용:
+- `ArenaManager`에 경기장 중심 위치와 범위 판정 helper를 추가했다.
+- `PlayerController`에 기본 자동 이동 로직을 추가했다.
+- 플레이어가 일정 시간마다 방향을 바꾸며 움직이도록 만들었다.
+- 캐릭터가 바깥으로 치우치면 경기장 중심 쪽으로 다시 돌아오도록 보정했다.
+- 이동은 `Rigidbody` 기반으로 처리해서 이후 충돌 넉백 단계와 자연스럽게 이어질 수 있게 했다.
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj`로 다시 컴파일 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 플레이 모드 시작 시 여러 플레이어가 경기장 위에 생성된다.
+- 생성된 플레이어가 경기장 안에서 자동으로 움직인다.
+- 아직 충돌 넉백, 탈락, 결과 판정은 붙지 않은 상태
+
+다음 작업:
+- 충돌 넉백 추가
+- 낙하 탈락과 생존 판정 추가
+
+### 2026-03-22 - 충돌 넉백과 기본 탈락 판정 추가
+
+작업 내용:
+- `PlayerController`에 플레이어 간 충돌 시 넉백이 발생하는 로직을 추가했다.
+- 넉백 강도가 각 플레이어의 `power` 값 영향을 받도록 연결했다.
+- 플레이어가 일정 높이 아래로 떨어지면 탈락 처리되도록 추가했다.
+- `GameManager`가 탈락 순서를 기록하고 마지막 생존자를 우승자로 판정하도록 확장했다.
+- 기본 `Ground`는 시각용 받침으로 두고, 실제 발판 역할은 타일이 맡도록 콜라이더를 껐다.
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+- `Assets/_Project/Scripts/Runtime/Bootstrap/SceneSetupBootstrap.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj`로 다시 컴파일 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 플레이어가 자동 생성되고 경기장 안에서 움직인다.
+- 충돌 시 서로 밀려난다.
+- 타일 밖으로 밀리거나 떨어지면 탈락할 수 있다.
+- 마지막 1명이 남으면 내부적으로 우승자 판정이 가능하다.
+
+다음 작업:
+- 결과 UI 추가
+- 카운트다운과 경기 상태 표시 추가
+
+### 2026-03-22 - 붕괴 연출 강화와 Shrink UI 추가
+
+작업 내용:
+- 플레이 중에도 프리팹 자산에 대해 `Renderer.material` 접근이 일어나지 않도록 `PlayerController.ApplyVisuals()`를 다시 보강했다.
+- `PlayerPrefabAutoBuilder`가 플레이 중에는 프리팹 자산을 확인/생성하지 않도록 수정해서 불필요한 에디터 접근을 막았다.
+- 경기장 붕괴 속도와 간격을 더 극적으로 조정했다.
+- 외곽 붕괴 전에 내부 타일이 한 칸씩 랜덤으로 먼저 무너지는 패턴을 추가했다.
+- `UIManager`가 자동으로 Canvas와 텍스트를 준비하고, 전투 중 `Shrink In: x.x` 카운트다운을 표시하도록 확장했다.
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+- `Assets/_Project/Scripts/Editor/PlayerPrefabAutoBuilder.cs`
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- `dotnet build Assembly-CSharp-Editor.csproj` 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 프리팹 머티리얼 접근 에러가 다시 나올 가능성을 줄인 상태
+- 경기장 붕괴가 더 빠르고 드라마틱하게 보일 수 있는 상태
+- 랜덤 단일 타일 붕괴와 다음 붕괴 카운트다운 UI가 동작할 수 있는 상태
+
+다음 작업:
+- 결과 UI 본격 구성
+- 우승자/순위 표시 연결
+
+### 2026-03-22 - 붕괴 시작 딜레이 조정
+
+작업 내용:
+- 내부 랜덤 타일 붕괴 시작 딜레이를 `2.5초`에서 `7.5초`로 늘렸다.
+- 외곽 링 붕괴 시작 딜레이를 `5초`에서 `10초`로 늘렸다.
+- 붕괴 간격 자체는 유지하고, 시작 시점만 더 늦춰서 초반 관전 시간이 조금 더 확보되도록 조정했다.
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+
+현재 상태:
+- 라운드 시작 후 약 7.5초부터 내부 랜덤 붕괴 시작
+- 라운드 시작 후 약 10초부터 외곽 링 붕괴 시작
+
+### 2026-03-22 - 붕괴 간격 딜레이 추가
+
+작업 내용:
+- 내부 랜덤 타일 붕괴 사이 간격을 `0.55초`에서 `5.55초`로 늘렸다.
+- 외곽 링 붕괴 사이 간격을 `0.8초`에서 `5.8초`로 늘렸다.
+- 시작 시점뿐 아니라 각 붕괴 이벤트 사이에도 충분한 관전 템포가 생기도록 조정했다.
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+
+현재 상태:
+- 내부 랜덤 붕괴는 약 5.55초 간격
+- 외곽 링 붕괴는 약 5.8초 간격
+
+### 2026-03-22 - 에디터 리로드 안정화
+
+작업 내용:
+- 스크립트 리로드 때 자동으로 프리팹을 생성하던 `PlayerPrefabAutoBuilder`의 `InitializeOnLoad` 동작을 제거했다.
+- 프리팹 생성은 이제 메뉴 `Tools/3D Arena/Ensure Player Prefab`으로만 수동 실행되게 바꿨다.
+- `SceneSetupBootstrap`, `ArenaManager`, `UIManager`에서 `ExecuteAlways` 기반 편집 모드 자동 변경을 제거했다.
+- `OnValidate`와 `DestroyImmediate` 중심의 에디터 타이밍 씬 변경을 줄이고, 대부분의 초기화가 Play 중에만 일어나도록 정리했다.
+- 이 변경으로 스크립트 업데이트 시 에디터가 씬/프리팹/캔버스를 동시에 다시 쓰는 위험을 크게 줄였다.
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Editor/PlayerPrefabAutoBuilder.cs`
+- `Assets/_Project/Scripts/Runtime/Bootstrap/SceneSetupBootstrap.cs`
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- `dotnet build Assembly-CSharp-Editor.csproj` 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 에디터 스크립트 리로드 시 자동 자산/씬 변형이 크게 줄어든 상태
+- 튕김 원인으로 의심되던 위험 패턴을 제거한 상태
+
+### 2026-03-22 - 경기장 바깥 링 자동 붕괴 추가
+
+작업 내용:
+- 전투 시작 후 5초가 지나면 경기장 바깥 링이 하나씩 무너지도록 `ArenaManager`에 타이머 기반 축소 로직을 추가했다.
+- 축소는 외곽 한 겹씩 진행되며, 각 타일은 콜라이더가 꺼진 뒤 아래로 떨어지는 연출을 가진다.
+- 경기장 최소 크기는 `5 x 5`로 제한해서 그 이하로는 더 줄어들지 않도록 했다.
+- 현재 활성 경기장 크기에 맞춰 외곽 판정도 함께 줄어들도록 반영했다.
+- `GameManager`가 라운드 시작 시 축소 타이머를 시작하고, 라운드 종료 시 축소를 멈추도록 연결했다.
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 게임 시작 후 5초 뒤부터 경기장 바깥쪽 타일이 한 겹씩 무너질 수 있는 상태
+- 최소 경기장 크기는 5 x 5 상태
+
+다음 작업:
+- 결과 UI 추가
+- 카운트다운과 경기 상태 표시 추가
+
+### 2026-03-22 - 플레이어 스폰 참조 꼬임 수정
+
+작업 내용:
+- `GameManager.playersRoot`가 씬의 `Players` 루트가 아니라 외부 프리팹 자산을 잘못 참조하던 문제를 수정했다.
+- `TryResolveReferences()`가 이제 씬 오브젝트가 아닌 잘못된 참조를 감지하면 자동으로 `GameRoot/Players`를 다시 찾도록 보강했다.
+- 플레이어 생성도 `Instantiate(prefab, position, rotation, parent)` 형태로 바꿔서 월드 위치 적용이 더 명확하게 되도록 정리했다.
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 플레이어가 중앙 한 점에 몰려 생성되던 참조 꼬임 문제를 코드에서 자동 복구할 수 있는 상태
+
+다음 작업:
+- 결과 UI 추가
+- 카운트다운과 경기 상태 표시 추가
+
+### 2026-03-22 - 프리팹 시각 적용 에러 수정
+
+작업 내용:
+- `PlayerController.OnValidate()`에서 프리팹 에셋 상태의 `Renderer.material`에 접근하던 문제를 수정했다.
+- 프리팹 에셋에서는 `sharedMaterial`을 사용하고, 플레이 중 인스턴스에서는 `material`을 사용하는 분기 로직을 추가했다.
+- 렌더러나 물리 컴포넌트가 아직 준비되지 않은 순간에도 `NullReferenceException`이 나지 않도록 방어 코드를 추가했다.
+- 머티리얼이 없는 경우를 대비해 기본 URP Lit 머티리얼을 자동으로 만들어 연결하도록 처리했다.
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- `dotnet build Assembly-CSharp-Editor.csproj` 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 플레이어 프리팹을 Project 창에서 다룰 때 `Renderer.material` 관련 에러가 나지 않는 상태
+- `OnValidate()` 중 시각 갱신이 더 안전하게 동작하는 상태
+
+다음 작업:
+- 결과 UI 추가
+- 카운트다운과 경기 상태 표시 추가
+
+### 2026-03-22 - 플레이어 프리팹 기반 구조로 리팩터링
+
+작업 내용:
+- `GameManager`가 더 이상 캡슐 프리미티브를 직접 만들지 않고 `Player` 프리팹을 스폰하도록 구조를 바꿨다.
+- `playerPrefab` 필드를 추가해서 인스펙터 또는 `Resources` 경로에서 플레이어 프리팹을 참조할 수 있게 했다.
+- 에디터 전용 `PlayerPrefabAutoBuilder`를 추가해서 `Assets/_Project/Resources/Prefabs/Player.prefab`이 없으면 자동으로 생성되도록 만들었다.
+- 플레이어 프리팹 생성 로직은 캡슐 메시, 콜라이더, 리지드바디, `PlayerController`가 들어간 기본형을 기준으로 구성했다.
+- 메뉴 `Tools/3D Arena/Ensure Player Prefab`로 수동 생성도 가능하도록 했다.
+
+추가된 주요 파일:
+- `Assets/_Project/Scripts/Editor/PlayerPrefabAutoBuilder.cs`
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- `dotnet build Assembly-CSharp-Editor.csproj` 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 런타임 플레이어 생성 구조가 프리팹 기반으로 전환된 상태
+- Unity 에디터가 스크립트를 다시 불러오면 플레이어 프리팹이 자동 생성될 수 있는 상태
+- 플레이어 외형과 컴포넌트를 이제 프리팹 기준으로 확장하기 쉬운 상태
+
+다음 작업:
+- 결과 UI 추가
+- 카운트다운과 경기 상태 표시 추가
+
+### 2026-03-22 - 중간 점검 2 수정
+
+작업 내용:
+- 레거시 씬에서 `ArenaManager` 크기가 10x10으로 남아 있으면 자동으로 15x15로 올려주도록 보정 로직을 추가했다.
+- 더 이상 필요하지 않은 `Ground` 오브젝트는 부트스트랩에서 자동 제거하도록 바꿨다.
+- 플레이어가 타일 바깥으로 밀린 뒤 끝에 걸쳐 버티는 문제를 줄이기 위해, 경기장 밖 판정을 시간 기반으로 추가했다.
+- 외곽에서 방향이 자주 뒤집히며 버벅이던 문제를 줄이기 위해 이동 로직을 즉시 속도 덮어쓰기 방식에서 가속 기반 보간 방식으로 바꿨다.
+- 플레이어 이동, 넉백, 중심 복귀, 탈락 판정 관련 수치를 `GameManager` 인스펙터에서 조절할 수 있도록 `PlayerRuntimeSettings`를 묶어 추가했다.
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Bootstrap/SceneSetupBootstrap.cs`
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj`로 다시 컴파일 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 기존 10x10 경기장은 열 때 15x15로 자동 업그레이드될 수 있는 상태
+- 레거시 그라운드는 제거되는 상태
+- 플레이어는 타일 밖에서 오래 버티지 못하고 탈락 판정으로 넘어갈 수 있는 상태
+- 플레이어 움직임 관련 핵심 수치는 `GameManager`에서 조절 가능한 상태
+
+다음 작업:
+- 결과 UI 추가
+- 카운트다운과 경기 상태 표시 추가
+
+### 2026-03-22 - 중간 점검 수정
+
+작업 내용:
+- 플레이어가 바닥에 반쯤 파묻혀 보이던 문제를 수정했다.
+- 원인은 캡슐 메시 중심과 콜라이더 중심이 다르게 잡혀 있던 점이었고, 콜라이더 중심을 원점으로 맞췄다.
+- 타일 좌표 함수도 정리해서 스폰 위치가 타일 윗면 기준으로 계산되도록 수정했다.
+- 충돌 시 밀려나지 않고 비비기만 하던 문제를 줄이기 위해 넉백 강도를 높였다.
+- 충돌 직후 짧은 시간 동안 자동 이동이 넉백을 덮어쓰지 않도록 recovery 시간을 추가했다.
+- 기본 맵 크기를 `15 x 15`로 올렸다.
+
+수정된 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj`로 다시 컴파일 확인
+- 경고 0개, 오류 0개
+
+현재 상태:
+- 플레이어 스폰 높이가 이전보다 자연스럽게 맞춰진 상태
+- 충돌 시 밀려나는 반응이 더 잘 보이도록 조정된 상태
+- 기본 경기장은 15 x 15 크기 상태
+
+다음 작업:
+- 결과 UI 추가
+- 카운트다운과 경기 상태 표시 추가
+
+### 2026-03-22 - 내부 타일 붕괴 제거
+
+작업 내용:
+- 내부에서 랜덤하게 타일이 먼저 무너지던 기능을 제거했다.
+- 이제 타일 붕괴는 외곽 링이 시간차를 두고 한 겹씩 내려가는 방식만 유지된다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인 예정
+
+현재 상태:
+- 경기 시작 후 내부 타일은 유지된다.
+- 붕괴는 바깥쪽부터 최소 5x5까지 진행된다.
+
+### 2026-03-22 - 붕괴 예고 및 경기 UI 추가
+
+작업 내용:
+- 외곽 붕괴 직전의 타일이 붉은색으로 바뀌도록 경고 연출을 추가했다.
+- 라운드 시작 전 중앙 카운트다운을 추가하고, 카운트다운 동안 플레이어 자동 이동이 잠시 멈추도록 정리했다.
+- 좌상단에 경기 상태 표시를 추가해서 Setup, Countdown, Battle, Results를 확인할 수 있게 했다.
+- 결과 패널을 추가해서 우승자와 최종 순위를 화면에서 바로 볼 수 있게 했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개 오류 0개
+
+현재 상태:
+- 붕괴 직전 외곽 링은 붉게 표시된다.
+- 게임 시작 시 중앙 카운트다운 후 전투가 시작된다.
+- 좌상단에서 현재 경기 상태와 다음 붕괴 시간을 확인할 수 있다.
+- 경기 종료 후 결과 패널에 우승자와 순위가 표시된다.
+
+### 2026-03-22 - UI 표시 문제 수정
+
+작업 내용:
+- UI가 보이지 않던 문제를 해결하기 위해 `UI` 오브젝트 아래에 전용 `RuntimeCanvas`를 만들고, 모든 텍스트와 결과 패널이 그 아래에 생성되도록 수정했다.
+- CanvasScaler와 GraphicRaycaster도 전용 캔버스 기준으로 붙도록 정리했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개 오류 0개
+
+### 2026-03-22 - UI 강제 초기화 보강
+
+작업 내용:
+- `UIManager`가 전용 캔버스를 직접 초기화하는 공개 메서드를 추가했다.
+- `SceneSetupBootstrap`과 `GameManager`에서 UI 초기화를 한 번 더 호출해서, Play 시작 시 UI가 반드시 생성되도록 보강했다.
+- 런타임에 생성되는 UI 오브젝트를 `RectTransform` 기반으로 만들도록 수정했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+- `Assets/_Project/Scripts/Runtime/Bootstrap/SceneSetupBootstrap.cs`
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개 오류 0개
+
+### 2026-03-22 - UI 내장 폰트 오류 수정
+
+작업 내용:
+- Unity 내장 폰트 경로를 `Arial.ttf`에서 `LegacyRuntime.ttf` 우선 사용으로 변경했다.
+- 폰트를 찾지 못하는 경우를 대비해 기존 경로도 폴백으로 유지했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개 오류 0개
+
+### 2026-03-22 - 넉백 튜닝 및 플레이어 상단 정보 추가
+
+작업 내용:
+- 충돌 시 위로 뜨는 힘을 조금 더 높였다.
+- 맵 축소 후에도 플레이어가 예전 경기장 크기를 기준으로 움직이던 문제를 수정해서, 줄어든 경기장 크기를 기준으로 가장자리 회피가 작동하게 했다.
+- 플레이어 머리 위에 이름과 파워 바가 보이도록 월드 스페이스 UI를 추가했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+- `Assets/_Project/MainScenes.unity`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개 오류 0개
+
+현재 상태:
+- 충돌 시 캐릭터가 이전보다 조금 더 높게 튄다.
+- 축소 이후 외곽 쪽으로 걸어 나가는 현상이 줄어든 상태다.
+- 각 플레이어 위에 이름과 파워 바가 표시된다.
+
+### 2026-03-22 - 씬 배치형 UI 전환 준비
+
+작업 내용:
+- `UIManager`에 씬에 배치된 UI 참조를 직접 바인딩하는 메서드를 추가했다.
+- 에디터 전용 `SceneUIBuilder`를 추가해서 `MainScenes`가 열려 있을 때 `UI` 아래에 Canvas, 상태 텍스트, 축소 타이머, 카운트다운, 결과 패널을 실제 씬 오브젝트로 생성하고 연결하도록 했다.
+- 메뉴 `Tools > 3D Arena > Ensure Scene UI`로 수동 생성도 가능하게 했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+- `Assets/_Project/Scripts/Editor/SceneUIBuilder.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- `dotnet build Assembly-CSharp-Editor.csproj` 확인
+- 경고 0개 오류 0개
+
+### 2026-03-22 - 우승 확정 후 라운드 정지 수정
+
+작업 내용:
+- 우승자가 결정되면 추가 탈락 등록을 막도록 처리했다.
+- 결과 진입 시 남아 있는 플레이어의 이동과 물리를 정지시키도록 수정했다.
+- 결과 화면 진입 후 `Time.timeScale`을 0으로 내려서 라운드 전체가 멈추도록 했다.
+- 새 라운드 시작이나 셋업 복귀 시에는 `Time.timeScale`을 다시 1로 복구한다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개 오류 0개
+
+### 2026-03-22 - 씬 UI 인스펙터 값 유지 수정
+
+작업 내용:
+- `SceneUIBuilder`가 이미 존재하는 UI 오브젝트의 위치, 크기, 색상, 폰트 스타일을 다시 기본값으로 덮어쓰지 않도록 수정했다.
+- `UIManager`도 씬에 바인딩된 UI 참조가 있으면 런타임에 새로 만들거나 레이아웃을 덮어쓰지 않도록 정리했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Editor/SceneUIBuilder.cs`
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- `dotnet build Assembly-CSharp-Editor.csproj` 확인
+- 경고 0개 오류 0개
+
+### 2026-03-22 - 동적 파워 게이지 추가
+
+작업 내용:
+- 플레이어 파워가 충돌 넉백 계산에 실제 반영되고 있음을 유지한 상태에서, 파워가 시간에 따라 주기적으로 강해졌다 약해졌다 하도록 수정했다.
+- 각 플레이어마다 파워 진동 위상을 다르게 줘서 동시에 같은 타이밍으로 움직이지 않게 했다.
+- 머리 위 파워 바가 현재 파워 값을 실시간으로 반영하도록 갱신 로직을 추가했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개 오류 0개
+
+### 2026-03-22 - 인스펙터 정리
+
+작업 내용:
+- `PlayerRuntimeSettings`에 Movement, Collision, Power, Elimination 섹션을 나눠서 관련 값을 한눈에 조절할 수 있게 정리했다.
+- `GameManager` 인스펙터도 Round, Participants, Scene References, Player Tuning, Spawn Power 구역으로 나눴다.
+- 파워 관련 값은 `GameManager > Player Tuning > Power`에서 바로 조절할 수 있게 정리된 상태다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개 오류 0개
+
+### 2026-03-22 - 충돌 파워 반영 방향 수정
+
+작업 내용:
+- 충돌 시 각 플레이어가 자기 파워만큼 자기 자신을 더 튕기던 문제를 수정했다.
+- 이제 충돌 계산은 한 번만 처리되고, 내 파워는 상대를 더 멀리 밀어내는 방향으로 적용된다.
+- 나는 상대 파워에 비례한 반작용만 받아서, 강한 플레이어가 상대를 더 강하게 밀어내는 체감이 나도록 정리했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 확인
+- 경고 0개 오류 0개
