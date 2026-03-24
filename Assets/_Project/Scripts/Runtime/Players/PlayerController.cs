@@ -378,10 +378,10 @@ public sealed class PlayerController : MonoBehaviour
         rectTransform.anchorMax = new Vector2(0.5f, 1f);
         rectTransform.pivot = new Vector2(0.5f, 1f);
         rectTransform.anchoredPosition = new Vector2(0f, -4f);
-        rectTransform.sizeDelta = new Vector2(200f, 30f);
+        rectTransform.sizeDelta = new Vector2(200f, 40f);
 
         text.font = LoadBuiltinFont();
-        text.fontSize = 22;
+        text.fontSize = 32;
         text.fontStyle = FontStyle.Bold;
         text.alignment = TextAnchor.MiddleCenter;
         text.color = Color.white;
