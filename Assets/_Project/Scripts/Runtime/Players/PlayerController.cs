@@ -57,17 +57,25 @@ public sealed class PlayerController : MonoBehaviour
     private const string NameLabelName = "NameLabel";
     private const string PowerBarBackgroundName = "PowerBarBackground";
     private const string PowerBarFillName = "PowerBarFill";
+    private const string CharacterVisualName = "CharacterVisual";
 
     [SerializeField] private string displayName = "Player";
     [SerializeField] private int playerIndex;
     [SerializeField, Range(1f, 10f)] private float power = 5f;
     [SerializeField] private Color tint = Color.white;
     [SerializeField] private bool autoMoveEnabled = true;
+    [SerializeField] private GameObject characterVisualPrefab;
+    [SerializeField] private Texture2D characterVisualMainTexture;
+    [SerializeField] private Vector3 characterVisualLocalPosition = new(0f, -1f, 0f);
+    [SerializeField] private Vector3 characterVisualLocalEulerAngles = Vector3.zero;
+    [SerializeField] private Vector3 characterVisualLocalScale = new(2.4f, 2.4f, 2.4f);
     [SerializeField] private PlayerRuntimeSettings runtimeSettings = new();
 
     private Rigidbody cachedRigidbody;
     private CapsuleCollider cachedCollider;
     private Renderer cachedRenderer;
+    private GameObject runtimeCharacterVisual;
+    private Material runtimeCharacterMaterial;
     private Canvas overheadCanvas;
     private Text overheadNameText;
     private Image powerBarFillImage;
@@ -94,6 +102,7 @@ public sealed class PlayerController : MonoBehaviour
     private void Awake()
     {
         EnsureSetup();
+        EnsureCharacterVisual();
         CacheArenaManager();
         CacheGameManager();
         EnsureOverheadUI();
@@ -110,6 +119,7 @@ public sealed class PlayerController : MonoBehaviour
     {
         CacheArenaManager();
         CacheGameManager();
+        EnsureCharacterVisual();
         EnsureOverheadUI();
         RefreshOverheadUI();
         ChooseNewDirection();
@@ -238,7 +248,9 @@ public sealed class PlayerController : MonoBehaviour
         gameObject.name = newDisplayName;
 
         EnsureSetup();
+        EnsureCharacterVisual();
         ApplyVisuals();
+        ApplyCharacterVisualMaterial();
         EnsureOverheadUI();
         RefreshOverheadUI();
     }
@@ -560,6 +572,7 @@ public sealed class PlayerController : MonoBehaviour
         cachedCollider.center = Vector3.zero;
 
         transform.localScale = new Vector3(0.8f, 1f, 0.8f);
+        ApplyVisuals();
     }
 
     private void CacheComponentReferences()
@@ -571,6 +584,17 @@ public sealed class PlayerController : MonoBehaviour
 
     private void ApplyVisuals()
     {
+        if (cachedRenderer != null)
+        {
+            cachedRenderer.enabled = characterVisualPrefab == null;
+        }
+
+        if (characterVisualPrefab != null)
+        {
+            ApplyCharacterVisualMaterial();
+            return;
+        }
+
         if (cachedRenderer == null)
         {
             return;
@@ -637,6 +661,106 @@ public sealed class PlayerController : MonoBehaviour
 
         cachedRenderer.sharedMaterial = new Material(shader);
         return cachedRenderer.sharedMaterial;
+    }
+
+    private void EnsureCharacterVisual()
+    {
+        if (!Application.isPlaying || characterVisualPrefab == null)
+        {
+            return;
+        }
+
+        if (runtimeCharacterVisual == null)
+        {
+            var existingVisual = transform.Find(CharacterVisualName);
+
+            if (existingVisual != null)
+            {
+                Destroy(existingVisual.gameObject);
+            }
+        }
+
+        if (runtimeCharacterVisual == null)
+        {
+            runtimeCharacterVisual = Instantiate(characterVisualPrefab, transform);
+            runtimeCharacterVisual.name = CharacterVisualName;
+        }
+
+        var visualTransform = runtimeCharacterVisual.transform;
+        visualTransform.SetLocalPositionAndRotation(
+            characterVisualLocalPosition,
+            Quaternion.Euler(characterVisualLocalEulerAngles));
+        visualTransform.localScale = characterVisualLocalScale;
+
+        ApplyCharacterVisualMaterial();
+
+        foreach (var collider in runtimeCharacterVisual.GetComponentsInChildren<Collider>(true))
+        {
+            collider.enabled = false;
+        }
+    }
+
+    private void ApplyCharacterVisualMaterial()
+    {
+        if (runtimeCharacterVisual == null || characterVisualMainTexture == null)
+        {
+            return;
+        }
+
+        if (runtimeCharacterMaterial == null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Lit");
+
+            if (shader == null)
+            {
+                shader = Shader.Find("Standard");
+            }
+
+            if (shader == null)
+            {
+                return;
+            }
+
+            runtimeCharacterMaterial = new Material(shader)
+            {
+                name = $"{name}_CharacterVisualMaterial"
+            };
+
+            if (runtimeCharacterMaterial.HasProperty("_BaseMap"))
+            {
+                runtimeCharacterMaterial.SetTexture("_BaseMap", characterVisualMainTexture);
+            }
+
+            if (runtimeCharacterMaterial.HasProperty("_MainTex"))
+            {
+                runtimeCharacterMaterial.SetTexture("_MainTex", characterVisualMainTexture);
+            }
+
+            if (runtimeCharacterMaterial.HasProperty("_BaseColor"))
+            {
+                runtimeCharacterMaterial.SetColor("_BaseColor", tint);
+            }
+
+            if (runtimeCharacterMaterial.HasProperty("_Color"))
+            {
+                runtimeCharacterMaterial.SetColor("_Color", tint);
+            }
+        }
+
+        if (runtimeCharacterMaterial.HasProperty("_BaseColor"))
+        {
+            runtimeCharacterMaterial.SetColor("_BaseColor", tint);
+        }
+
+        if (runtimeCharacterMaterial.HasProperty("_Color"))
+        {
+            runtimeCharacterMaterial.SetColor("_Color", tint);
+        }
+
+        foreach (var renderer in runtimeCharacterVisual.GetComponentsInChildren<Renderer>(true))
+        {
+            renderer.sharedMaterial = runtimeCharacterMaterial;
+        }
     }
 
     private void CacheArenaManager()

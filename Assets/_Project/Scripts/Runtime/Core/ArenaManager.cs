@@ -6,12 +6,15 @@ public sealed class ArenaManager : MonoBehaviour
 {
     private static readonly int BaseColorProperty = Shader.PropertyToID("_BaseColor");
     private static readonly int ColorProperty = Shader.PropertyToID("_Color");
+    private static readonly int BaseMapProperty = Shader.PropertyToID("_BaseMap");
+    private static readonly int MainTexProperty = Shader.PropertyToID("_MainTex");
 
     [SerializeField, Min(4)] private int width = 15;
     [SerializeField, Min(4)] private int height = 15;
     [SerializeField, Min(0.5f)] private float tileSize = 1f;
     [SerializeField, Min(0.1f)] private float tileHeight = 0.2f;
     [SerializeField, Min(0f)] private float tileGap = 0.05f;
+    [SerializeField] private GameObject tileVisualPrefab;
     [SerializeField, Min(0f)] private float shrinkStartDelay = 10f;
     [SerializeField, Min(0.2f)] private float shrinkInterval = 5.8f;
     [SerializeField, Min(5)] private int minimumActiveWidth = 5;
@@ -172,31 +175,32 @@ public sealed class ArenaManager : MonoBehaviour
 
         tiles = new Transform[width, height];
         tileRenderers = new Renderer[width, height];
-        tileSharedMaterial = CreateTileMaterial();
+        tileSharedMaterial = tileVisualPrefab == null ? CreateTileMaterial() : null;
         tilePropertyBlock ??= new MaterialPropertyBlock();
 
         for (var y = 0; y < height; y++)
         {
             for (var x = 0; x < width; x++)
             {
-                var tileObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                tileObject.name = $"{TileNamePrefix}{x}_{y}";
-                tileObject.transform.SetParent(tileRoot, false);
-                tileObject.transform.localPosition = CalculateTileLocalPosition(x, y);
-                tileObject.transform.localRotation = Quaternion.identity;
-                tileObject.transform.localScale = new Vector3(tileSize, tileHeight, tileSize);
+                var tileObject = CreateTileObject(tileRoot, x, y);
+                var renderers = tileObject.GetComponentsInChildren<Renderer>(true);
+                var renderer = renderers.Length > 0 ? renderers[0] : null;
 
                 tiles[x, y] = tileObject.transform;
-                var renderer = tileObject.GetComponent<Renderer>();
                 tileRenderers[x, y] = renderer;
+
+                if (renderers.Length > 0)
+                {
+                    if (tileSharedMaterial == null)
+                    {
+                        tileSharedMaterial = CreateTileMaterialFromSource(renderers);
+                    }
+
+                    ApplyTileMaterial(renderers);
+                }
 
                 if (renderer != null)
                 {
-                    if (tileSharedMaterial != null)
-                    {
-                        renderer.sharedMaterial = tileSharedMaterial;
-                    }
-
                     ApplyTileColor(renderer, tileBaseColor);
                 }
             }
@@ -204,6 +208,41 @@ public sealed class ArenaManager : MonoBehaviour
 
         ResetActiveBounds();
         FitGroundToArena();
+    }
+
+    private GameObject CreateTileObject(Transform tileRoot, int x, int y)
+    {
+        var tileObject = tileVisualPrefab != null
+            ? Instantiate(tileVisualPrefab, tileRoot)
+            : GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+        tileObject.name = $"{TileNamePrefix}{x}_{y}";
+        tileObject.transform.SetParent(tileRoot, false);
+        tileObject.transform.localRotation = Quaternion.identity;
+
+        if (tileVisualPrefab == null)
+        {
+            tileObject.transform.localPosition = CalculateTileLocalPosition(x, y);
+            tileObject.transform.localScale = new Vector3(tileSize, tileHeight, tileSize);
+            return tileObject;
+        }
+
+        var visualBounds = GetCombinedRendererLocalBounds(tileObject.transform);
+        var safeSize = new Vector3(
+            Mathf.Max(visualBounds.size.x, 0.001f),
+            Mathf.Max(visualBounds.size.y, 0.001f),
+            Mathf.Max(visualBounds.size.z, 0.001f));
+
+        var targetScale = new Vector3(
+            tileSize / safeSize.x,
+            tileHeight / safeSize.y,
+            tileSize / safeSize.z);
+
+        tileObject.transform.localScale = targetScale;
+        tileObject.transform.localPosition = CalculateTileLocalPosition(x, y) - Vector3.Scale(visualBounds.center, targetScale);
+
+        EnsureTileCollider(tileObject, visualBounds);
+        return tileObject;
     }
 
     private Transform FindOrCreateTileRoot()
@@ -228,6 +267,76 @@ public sealed class ArenaManager : MonoBehaviour
 
             Destroy(child);
         }
+    }
+
+    private Bounds GetCombinedRendererLocalBounds(Transform root)
+    {
+        var renderers = root.GetComponentsInChildren<Renderer>();
+        var initialized = false;
+        var combinedBounds = new Bounds(Vector3.zero, Vector3.one);
+
+        foreach (var renderer in renderers)
+        {
+            var rendererBounds = GetRendererBoundsInRootSpace(root, renderer);
+
+            if (!initialized)
+            {
+                combinedBounds = rendererBounds;
+                initialized = true;
+                continue;
+            }
+
+            combinedBounds.Encapsulate(rendererBounds.min);
+            combinedBounds.Encapsulate(rendererBounds.max);
+        }
+
+        return initialized ? combinedBounds : new Bounds(Vector3.zero, Vector3.one);
+    }
+
+    private Bounds GetRendererBoundsInRootSpace(Transform root, Renderer renderer)
+    {
+        var localBounds = renderer.localBounds;
+        var extents = localBounds.extents;
+        var initialized = false;
+        var bounds = new Bounds(Vector3.zero, Vector3.zero);
+
+        for (var x = -1; x <= 1; x += 2)
+        {
+            for (var y = -1; y <= 1; y += 2)
+            {
+                for (var z = -1; z <= 1; z += 2)
+                {
+                    var rendererLocalPoint = localBounds.center + Vector3.Scale(extents, new Vector3(x, y, z));
+                    var worldPoint = renderer.transform.TransformPoint(rendererLocalPoint);
+                    var rootLocalPoint = root.InverseTransformPoint(worldPoint);
+
+                    if (!initialized)
+                    {
+                        bounds = new Bounds(rootLocalPoint, Vector3.zero);
+                        initialized = true;
+                    }
+                    else
+                    {
+                        bounds.Encapsulate(rootLocalPoint);
+                    }
+                }
+            }
+        }
+
+        return initialized ? bounds : new Bounds(Vector3.zero, Vector3.one);
+    }
+
+    private void EnsureTileCollider(GameObject tileObject, Bounds localBounds)
+    {
+        var collider = tileObject.GetComponent<BoxCollider>();
+
+        if (collider == null)
+        {
+            collider = tileObject.AddComponent<BoxCollider>();
+        }
+
+        collider.center = localBounds.center;
+        collider.size = localBounds.size;
     }
 
     private Vector3 CalculateTileLocalPosition(int x, int y)
@@ -444,6 +553,116 @@ public sealed class ArenaManager : MonoBehaviour
         {
             color = tileBaseColor
         };
+    }
+
+    private Material CreateTileMaterialFromSource(Renderer[] renderers)
+    {
+        var material = CreateTileMaterial();
+
+        if (material == null)
+        {
+            return null;
+        }
+
+        material.name = $"{name}_TileMaterial";
+
+        var sourceMaterial = FindSourceMaterial(renderers);
+
+        if (sourceMaterial == null)
+        {
+            return material;
+        }
+
+        CopyTextureIfPresent(sourceMaterial, BaseMapProperty, material, BaseMapProperty);
+        CopyTextureIfPresent(sourceMaterial, BaseMapProperty, material, MainTexProperty);
+        CopyTextureIfPresent(sourceMaterial, MainTexProperty, material, BaseMapProperty);
+        CopyTextureIfPresent(sourceMaterial, MainTexProperty, material, MainTexProperty);
+
+        return material;
+    }
+
+    private Material FindSourceMaterial(Renderer[] renderers)
+    {
+        if (renderers == null)
+        {
+            return null;
+        }
+
+        foreach (var renderer in renderers)
+        {
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            var sharedMaterials = renderer.sharedMaterials;
+
+            if (sharedMaterials == null)
+            {
+                continue;
+            }
+
+            foreach (var material in sharedMaterials)
+            {
+                if (material != null)
+                {
+                    return material;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private void CopyTextureIfPresent(Material sourceMaterial, int sourceProperty, Material destinationMaterial, int destinationProperty)
+    {
+        if (sourceMaterial == null || destinationMaterial == null)
+        {
+            return;
+        }
+
+        if (!sourceMaterial.HasProperty(sourceProperty) || !destinationMaterial.HasProperty(destinationProperty))
+        {
+            return;
+        }
+
+        var texture = sourceMaterial.GetTexture(sourceProperty);
+
+        if (texture != null)
+        {
+            destinationMaterial.SetTexture(destinationProperty, texture);
+        }
+    }
+
+    private void ApplyTileMaterial(Renderer[] renderers)
+    {
+        if (tileSharedMaterial == null || renderers == null)
+        {
+            return;
+        }
+
+        foreach (var renderer in renderers)
+        {
+            if (renderer == null)
+            {
+                continue;
+            }
+
+            var sharedMaterials = renderer.sharedMaterials;
+
+            if (sharedMaterials == null || sharedMaterials.Length == 0)
+            {
+                renderer.sharedMaterial = tileSharedMaterial;
+                continue;
+            }
+
+            for (var i = 0; i < sharedMaterials.Length; i++)
+            {
+                sharedMaterials[i] = tileSharedMaterial;
+            }
+
+            renderer.sharedMaterials = sharedMaterials;
+        }
     }
 
     private void UpdateTileWarningVisuals()

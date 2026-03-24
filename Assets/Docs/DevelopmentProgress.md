@@ -763,3 +763,124 @@
 확인 내용:
 - `dotnet build Assembly-CSharp.csproj` 확인
 - 경고 0개, 오류 0개
+
+### 2026-03-22 - 플레이어 외형 1차 적용
+
+작업 내용:
+- 현재 플레이어의 물리와 게임 로직은 유지한 채, 런타임에 외형만 `Sparrow` 모델로 붙이는 1차 적용을 진행했다.
+- `PlayerController`에 캐릭터 외형 프리팹 참조와 위치/회전/스케일 값을 추가했다.
+- 플레이 시작 시 `CharacterVisual` 자식으로 `Sparrow.prefab`을 생성하고, 외형 쪽 콜라이더는 비활성화하도록 정리했다.
+- 기본 캡슐 메시 렌더러는 외형 프리팹이 있을 때 숨기도록 변경했다.
+- `Player.prefab`이 `Assets/Quirky Series Ultimate/FREE/Prefabs/Sparrow.prefab`을 참조하도록 연결했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+- `Assets/_Project/Resources/Prefabs/Player.prefab`
+
+확인 내용:
+- 코드 참조와 프리팹 연결은 완료했다.
+- `dotnet build Assembly-CSharp.csproj`는 Unity가 `Temp/obj` 경로를 잠그고 있어 파일 접근 거부로 검증하지 못했다.
+
+### 2026-03-22 - Sparrow 분홍색 머티리얼 보정
+
+작업 내용:
+- `Sparrow` 외형이 분홍색으로 보이던 원인을 확인했다.
+- 텍스처는 `Assets/Quirky Series Ultimate/FREE/Textures/T_Sparrow.png`에 정상 포함되어 있었고, 문제는 `M_Sparrow.mat`가 `SoftSurface.shader`를 참조하는 점이었다.
+- 현재 프로젝트에서 해당 셰이더가 정상적으로 표시되지 않아, 런타임에 `URP Lit` 또는 `Standard` 머티리얼을 새로 만들고 `T_Sparrow.png`를 적용하도록 보정 로직을 추가했다.
+- `Player.prefab`에도 `characterVisualMainTexture` 참조를 연결했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+- `Assets/_Project/Resources/Prefabs/Player.prefab`
+
+확인 내용:
+- 텍스처와 참조 연결은 확인했다.
+- `dotnet build Assembly-CSharp.csproj`는 Unity가 `Temp/obj` 경로를 잠그고 있어 파일 접근 거부로 검증하지 못했다.
+
+### 2026-03-22 - 플레이어별 외형 색상 반영
+
+작업 내용:
+- 플레이어마다 이미 설정되던 `tint` 값을 `Sparrow` 외형 머티리얼에도 적용하도록 연결했다.
+- 이제 각 플레이어는 기존 `playerColors` 순서대로 서로 다른 색으로 보일 수 있다.
+- 색상은 외형 머티리얼 생성 시와 플레이어 설정 갱신 시 모두 다시 적용되도록 정리했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+
+### 2026-03-23 - PartyMonsterDuo 추가 플레이어 프리팹 연결
+
+작업 내용:
+- `Assets/PartyMonsterDuo` 폴더가 이미 프로젝트에 정상 임포트되어 있는 것을 확인하고, 해당 에셋을 재사용하는 방향으로 정리했다.
+- 기본 `Player.prefab`은 Sparrow 외형을 유지하고, 추가 프리팹인 `Player 1.prefab`에 `PartyMonsterDuo/Prefab/P01.prefab` 외형을 연결했다.
+- `Player 1.prefab`에 `DefaultPolyart.png` 텍스처 참조를 연결해 현재 런타임 머티리얼 보정 로직과 함께 바로 보이도록 맞췄다.
+- PartyMonsterDuo 외형이 캡슐 충돌체와 크게 어긋나지 않도록 위치와 스케일을 보수적으로 조정했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Resources/Prefabs/Player 1.prefab`
+
+### 2026-03-23 - 플레이어 프리팹 에디터 미리보기 빌더 추가
+
+작업 내용:
+- `Player 1.prefab`을 GameManager에 연결했을 때도 에디터에서 캡슐처럼 보이던 원인을 정리했다.
+- 현재 플레이어 외형은 런타임에 붙는 구조라서, 프리팹 자산 자체는 캡슐로 보일 수 있다.
+- 이를 보완하기 위해 `Tools > 3D Arena > Rebuild Player Variant Prefabs` 메뉴를 추가했다.
+- 이 메뉴는 `Player.prefab`과 `Player 1.prefab`을 다시 열어 각각 외형 프리팹을 `CharacterVisual` 자식으로 미리 구워 넣고, 루트 캡슐 렌더러를 꺼서 에디터에서도 외형이 바로 보이게 만든다.
+- 기본 `Player.prefab`은 Sparrow, `Player 1.prefab`은 PartyMonsterDuo(P01) 기준으로 재생성된다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Editor/PlayerVariantPrefabBuilder.cs`
+
+### 2026-03-23 - Player 2 프리팹 및 Free Burrow 외형 추가
+
+작업 내용:
+- `Assets/Free Burrow Cute Series` 에셋이 정상 임포트된 것을 확인했다.
+- 새 프리팹 `Assets/_Project/Resources/Prefabs/Player 2.prefab`을 추가했다.
+- `Player 2.prefab`은 `Free Burrow Cute Series/Prefabs/Free Burrow.prefab` 외형과 `Free Burrow.psd` 텍스처를 사용하도록 연결했다.
+- 기존 프리팹 복제본 안에 남아 있을 수 있는 이전 미리보기 외형 때문에 잘못된 모델이 남는 문제를 막기 위해, `PlayerController`가 런타임 시작 시 기존 `CharacterVisual` 자식을 제거하고 현재 설정된 외형 프리팹으로 다시 생성하도록 보강했다.
+- `Tools > 3D Arena > Rebuild Player Variant Prefabs` 메뉴가 `Player 2.prefab`까지 같이 재생성하도록 확장했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Resources/Prefabs/Player 2.prefab`
+- `Assets/_Project/Resources/Prefabs/Player 2.prefab.meta`
+- `Assets/_Project/Scripts/Runtime/Players/PlayerController.cs`
+- `Assets/_Project/Scripts/Editor/PlayerVariantPrefabBuilder.cs`
+
+### 2026-03-25 - 경기장 타일 머티리얼 보정 및 대형 맵 카메라 조정
+
+작업 내용:
+- 경기장 타일이 Play 시 분홍색으로 보이던 원인을 확인했고, `ArenaManager`가 타일 프리팹의 기존 비URP 머티리얼을 그대로 쓰지 않도록 보정했다.
+- 타일 생성 시 첫 렌더러의 텍스처를 기준으로 URP 호환 공유 머티리얼을 새로 만들고, 모든 arena 타일 렌더러에 같은 머티리얼을 적용하도록 정리했다.
+- `GameManager`의 `playerColors` 기본 팔레트를 확장해 색상 5개를 추가했고, 기존 씬에 직렬화된 배열이 더 짧아도 자동으로 뒤에 색을 보강하도록 처리했다.
+- 맵 크기가 `16x16` 이상일 때는 `SceneSetupBootstrap`이 카메라를 기본 위치보다 약간 더 뒤와 위에서 보도록 조정하게 만들었다.
+- 라운드 시작 시 참가 인원에 따라 arena 크기를 다시 설정한 뒤, 그 크기에 맞춰 카메라 위치도 함께 재적용하도록 연결했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/ArenaManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Bootstrap/SceneSetupBootstrap.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 빌드가 경고 0개, 오류 0개로 통과했다.
+- 코드상으로는 타일 머티리얼이 URP 기준으로 강제 보정되고, `16x16` 이상 대형 맵에서만 카메라 오프셋이 적용되도록 확인했다.
+
+다음 작업:
+- Unity Play 모드에서 대형 맵 인원수 기준으로 카메라 거리와 플레이어 색상 구분감이 실제 화면에서도 자연스러운지 한 번 더 점검한다.
+
+### 2026-03-25 - 전투 중 탈락 순위 HUD 추가
+
+작업 내용:
+- 게임 도중 플레이어가 탈락하면 화면 오른쪽에 실시간으로 탈락 순위를 보여주는 HUD 패널을 `UIManager`가 런타임에 직접 생성하도록 추가했다.
+- 결과 화면용 최종 순위와 별도로, 전투 중에는 `GameManager`의 현재 `eliminationOrder`를 기준으로 이미 탈락한 플레이어들의 등수를 계산해 표시하도록 정리했다.
+- 탈락 순위 패널은 전투(`Battle`) 상태에서만 보이고, 아직 탈락자가 없으면 숨겨지도록 처리했다.
+- 표시 내용은 가장 최근에 높은 순위를 확정한 탈락자부터 위쪽에 오도록 구성해, 예를 들어 3등이 먼저 보이고 그 아래에 4등, 5등이 이어지게 했다.
+
+수정한 주요 파일:
+- `Assets/_Project/Scripts/Runtime/Core/GameManager.cs`
+- `Assets/_Project/Scripts/Runtime/Core/UIManager.cs`
+
+확인 내용:
+- `dotnet build Assembly-CSharp.csproj` 빌드가 경고 0개, 오류 0개로 통과했다.
+- 코드상으로 전투 중에만 오른쪽 HUD 패널이 활성화되고, 탈락자가 늘어날수록 순위 문자열이 즉시 갱신되도록 연결된 것을 확인했다.
+
+다음 작업:
+- Unity Play 모드에서 실제 전투 중 HUD 위치와 줄 간격이 화면 우측에서 과하게 크거나 겹치지 않는지 한 번 더 확인한다.

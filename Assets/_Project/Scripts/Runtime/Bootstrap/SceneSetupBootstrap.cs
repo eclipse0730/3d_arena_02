@@ -8,6 +8,8 @@ public sealed class SceneSetupBootstrap : MonoBehaviour
     [SerializeField] private int defaultArenaWidth = 15;
     [SerializeField] private int defaultArenaHeight = 15;
     [SerializeField] private Vector3 cameraPosition = new(0f, 14f, -14f);
+    [SerializeField, Min(16)] private int largeArenaCameraThreshold = 16;
+    [SerializeField] private Vector3 largeArenaCameraOffset = new(0f, 1f, -2f);
     [SerializeField] private Vector3 cameraEuler = new(45f, 0f, 0f);
     [SerializeField] private Vector3 lightPosition = new(0f, 10f, 0f);
     [SerializeField] private Vector3 lightEuler = new(50f, -30f, 0f);
@@ -41,7 +43,7 @@ public sealed class SceneSetupBootstrap : MonoBehaviour
         RemoveLegacyGround(arena);
         EnsureEventSystem();
         uiManager.InitializeRuntimeUI();
-        ConfigureCamera();
+        ConfigureCameraForArenaSize(arenaManager.Width, arenaManager.Height);
         ConfigureDirectionalLight();
     }
 
@@ -79,7 +81,7 @@ public sealed class SceneSetupBootstrap : MonoBehaviour
         Destroy(ground.gameObject);
     }
 
-    private void ConfigureCamera()
+    public void ConfigureCameraForArenaSize(int arenaWidth, int arenaHeight)
     {
         var targetCamera = Camera.main;
 
@@ -93,7 +95,12 @@ public sealed class SceneSetupBootstrap : MonoBehaviour
             return;
         }
 
-        targetCamera.transform.position = cameraPosition;
+        var useLargeArenaCamera = arenaWidth >= largeArenaCameraThreshold || arenaHeight >= largeArenaCameraThreshold;
+        var targetPosition = useLargeArenaCamera
+            ? cameraPosition + largeArenaCameraOffset
+            : cameraPosition;
+
+        targetCamera.transform.position = targetPosition;
         targetCamera.transform.rotation = Quaternion.Euler(cameraEuler);
     }
 

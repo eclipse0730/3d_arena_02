@@ -3,6 +3,8 @@ using UnityEngine;
 
 public sealed class GameManager : MonoBehaviour
 {
+    private static readonly Color[] DefaultPlayerColors = CreateDefaultPlayerColors();
+
     public enum GamePhase
     {
         Setup,
@@ -41,17 +43,7 @@ public sealed class GameManager : MonoBehaviour
 
     [Header("Spawn Power")]
     [Tooltip("플레이어에게 순서대로 적용할 색상 목록입니다.")]
-    [SerializeField] private Color[] playerColors =
-    {
-        new(0.91f, 0.32f, 0.28f),
-        new(0.22f, 0.60f, 0.95f),
-        new(0.98f, 0.77f, 0.20f),
-        new(0.25f, 0.77f, 0.50f),
-        new(0.74f, 0.42f, 0.93f),
-        new(0.96f, 0.52f, 0.16f),
-        new(0.18f, 0.78f, 0.82f),
-        new(0.95f, 0.40f, 0.64f)
-    };
+    [SerializeField] private Color[] playerColors = CreateDefaultPlayerColors();
     [Tooltip("파워 진동 적용 전의 최소 시작 파워입니다.")]
     [SerializeField, Range(1f, 10f)] private float minSpawnPower = 3f;
     [Tooltip("파워 진동 적용 전의 최대 시작 파워입니다.")]
@@ -75,6 +67,7 @@ public sealed class GameManager : MonoBehaviour
     private void OnValidate()
     {
         EnsureParticipantSlots();
+        EnsurePlayerColors();
         TryResolveReferences();
         TryResolvePlayerPrefab();
     }
@@ -88,6 +81,7 @@ public sealed class GameManager : MonoBehaviour
 
         Time.timeScale = 1f;
         EnsureParticipantSlots();
+        EnsurePlayerColors();
         TryResolveReferences();
         TryResolvePlayerPrefab();
         uiManager?.InitializeRuntimeUI();
@@ -317,6 +311,31 @@ public sealed class GameManager : MonoBehaviour
         }
     }
 
+    private void EnsurePlayerColors()
+    {
+        if (playerColors == null || playerColors.Length == 0)
+        {
+            playerColors = CreateDefaultPlayerColors();
+            return;
+        }
+
+        if (playerColors.Length >= DefaultPlayerColors.Length)
+        {
+            return;
+        }
+
+        var expandedColors = new Color[DefaultPlayerColors.Length];
+
+        for (var i = 0; i < expandedColors.Length; i++)
+        {
+            expandedColors[i] = i < playerColors.Length
+                ? playerColors[i]
+                : DefaultPlayerColors[i];
+        }
+
+        playerColors = expandedColors;
+    }
+
     private void ConfigureArenaForParticipantCount()
     {
         if (arenaManager == null)
@@ -326,13 +345,15 @@ public sealed class GameManager : MonoBehaviour
 
         var targetSize = participantCount switch
         {
-            <= 8 => 15,
-            <= 12 => 18,
-            <= 16 => 21,
-            _ => 24
+            <= 4 => 15,
+            <= 8 => 16,
+            <= 12 => 17,
+            <= 16 => 18,
+            _ => 20
         };
 
         arenaManager.ConfigureArenaSize(targetSize, targetSize);
+        FindFirstObjectByType<SceneSetupBootstrap>()?.ConfigureCameraForArenaSize(targetSize, targetSize);
     }
 
     private int[] BuildShuffledTileIndices()
@@ -372,6 +393,28 @@ public sealed class GameManager : MonoBehaviour
         }
 
         return playerColors[index % playerColors.Length];
+    }
+
+    private static Color[] CreateDefaultPlayerColors()
+    {
+        return new[]
+        {
+            new Color(0.91f, 0.32f, 0.28f),
+            new Color(0.22f, 0.60f, 0.95f),
+            new Color(0.98f, 0.77f, 0.20f),
+            new Color(0.25f, 0.77f, 0.50f),
+            new Color(0.74f, 0.42f, 0.93f),
+            new Color(0.96f, 0.52f, 0.16f),
+            new Color(0.18f, 0.78f, 0.82f),
+            new Color(0.95f, 0.40f, 0.64f),
+            new Color(0.57f, 0.86f, 0.25f),
+            new Color(0.43f, 0.50f, 0.97f),
+            new Color(0.97f, 0.88f, 0.41f),
+            new Color(0.36f, 0.90f, 0.73f),
+            new Color(0.00f, 0.00f, 0.00f),
+            new Color(0.99f, 0.99f, 0.99f),
+            new Color(1.00f, 0.62f, 0.82f)
+        };
     }
 
     public string GetPhaseDisplayText()
@@ -415,6 +458,31 @@ public sealed class GameManager : MonoBehaviour
 
             lines.Add($"{placement}. {eliminatedPlayer.DisplayName}");
             placement++;
+        }
+
+        return string.Join("\n", lines);
+    }
+
+    public string GetEliminationDisplayText()
+    {
+        if (eliminationOrder.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var lines = new List<string>();
+
+        for (var i = eliminationOrder.Count - 1; i >= 0; i--)
+        {
+            var eliminatedPlayer = eliminationOrder[i];
+
+            if (eliminatedPlayer == null)
+            {
+                continue;
+            }
+
+            var placement = participantCount - i;
+            lines.Add($"{placement}. {eliminatedPlayer.DisplayName}");
         }
 
         return string.Join("\n", lines);
